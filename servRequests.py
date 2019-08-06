@@ -17,7 +17,8 @@ class Requests:
 
     def __init__(self):
         self.actions = {"register": self.request_register, "send": self.request_send_email, "login": self.request_login,
-                        "get2": self.request_get_email, "get_key": self.request_get_key, "stop": self.request_stop}
+                        "get2": self.request_get_email, "get_key": self.request_get_key, "stop": self.request_stop,
+                        "delete": self.request_delete}
         self.ud = UserData("user_data.csv")
         self.sm = SendMail()
 
@@ -53,6 +54,7 @@ class Requests:
         file_out.write(public_key)
         print("[INFO] RSA keys generated !")
 
+    # Overwrites a file with an eencrypted version
     @staticmethod
     def encrypt_file(file_path, public_key_path):
         data = open(file_path).read().encode("utf-8")
@@ -82,15 +84,35 @@ class Requests:
         token_length = 16
         if len(params) == 2:
             res = self.ud.appendfile(params[0], params[1])
-            # return self.ud.addentry(params[0], params[1])
             if not self.has_keys(params[0]):
                 self.gen_keys(params[0])
             res["file_token"] = self.generate_token(token_length)
-            res["token_length"] = token_length
+            # res["token_length"] = token_length
             res["user"] = params[0]
         else:
             res["success"] = False
             res["reason"] = "register request should have 2 arguments: email address and password"
+        return res
+
+    # Removes all data concerning an user
+    def request_delete(self, params):
+        res = {}
+        if len(params) == 2:
+            if self.ud.authorize(params[0], params[1]):
+                print("[INFO] Deleting data of user %s ..." % params[0])
+                for folder in ("fr_data", "keys", "mail"):
+                    folder_to_remove = folder + "/" + params[0]
+                    if os.path.exists(folder_to_remove):
+                        shutil.rmtree(folder_to_remove)
+                self.ud.remove_entry(params[0])
+                print("[INFO] Done !")
+                res["success"] = True
+            else:
+                res["success"] = False
+                res["reason"] = "Invalid email address or password"
+        else:
+            res["success"] = False
+            res["reason"] = "Invalid number of parameters, delete requires an email address and password"
         return res
 
     # params[0] should be recipient, params[1] subject and params[2] content
@@ -105,17 +127,23 @@ class Requests:
             default_message = "You received a new secret message\nDownload the receiving app to see it"
             default_subject = "New secret message"
             path_to_mail = "mail/" + recipient_hash
+
+            # Create mail folder if it does not already exists
             if not os.path.exists(path_to_mail):
                 os.makedirs(path_to_mail)
+            # Assign an id to the email
             mail_id = 0
             list_dir = os.listdir(path_to_mail)
             while str(mail_id) in list_dir:
                 mail_id += 1
             mail_id = str(mail_id)
+
             path_to_mail_id = path_to_mail + "/" + mail_id
             with open(path_to_mail_id, 'wb') as f:
                 file_content = subject + "\n" + content
                 f.write(file_content.encode('utf-8'))
+
+            # send notification to recipient
             raw_msg = self.sm.create_message(self.sm.SENDER, recipient, default_subject, default_message)
             message = self.sm.send_message(self.sm.service, "me", raw_msg)
             if message["labelIds"][0] == "SENT":
@@ -127,6 +155,8 @@ class Requests:
                 res["success"] = True
             else:
                 res["success"] = False
+                os.remove(path_to_mail_id)
+
             res["reason"] = "Message " + message["labelIds"][0] + " Id: " + message["id"]
         else:
             res["success"] = False

@@ -48,9 +48,23 @@ class UserData:
             res["reason"] = ""
         return res
 
-    def writeTofile(self):
-        # TODO ovewrite file with all the entries in the dict
-        pass
+    def remove_entry(self, user):
+        del self.userData[user]
+        return self.overwrite_file()
+
+    # ovewrite file with all the entries in the dict
+    def overwrite_file(self):
+        res = {}
+        with open(self.filename, "w") as myfile:
+            myfile.write("")
+        for email in self.userData:
+            pswd = self.userData[email]
+            line_to_write = email + "," + pswd + "\n"
+            with open(self.filename, "w") as myfile:
+                myfile.write(line_to_write)
+            res["success"] = True
+            res["reason"] = ""
+        return res
 
     def authorize(self, username, password):
         if username in self.userData:
