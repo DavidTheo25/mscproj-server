@@ -17,7 +17,7 @@ class Requests:
 
     def __init__(self):
         self.actions = {"register": self.request_register, "send": self.request_send_email, "login": self.request_login,
-                        "get2": self.request_get_email, "get_key": self.request_get_key}
+                        "get2": self.request_get_email, "get_key": self.request_get_key, "stop": self.request_stop}
         self.ud = UserData("user_data.csv")
         self.sm = SendMail()
 
@@ -71,6 +71,10 @@ class Requests:
         [file_out.write(x) for x in (enc_session_key, cipher_aes.nonce, tag, ciphertext)]
         file_out.close()
         return enc_file_path
+
+    @staticmethod
+    def request_stop(params):
+        return {"success": True, "stop": True, "Reason": "stop requested"}
 
     # params[0] should be email address and params[1] should be pswd
     def request_register(self, params):

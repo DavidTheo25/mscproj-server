@@ -129,34 +129,36 @@ class ClientThread(Thread):
                     security_token = result["token"]
                     new_res = self.receive_request()
                     new_result = self.requests.handle(new_res, security_token)
-                    if "zipfile" in new_result and new_result["success"]:
-                        print("[DEBUG] Sending zip file with mail and face recognition data ...")
-                        # send file TODO put this in a function to make it cleaner
-                        zipfile = new_result["zipfile"]
-                        with open(zipfile, "rb") as myfile:
-                            buffer = myfile.read(1024)
-                            counter = 0
-                            while buffer:
-                                counter += 1
-                                conn.send(buffer)
-                                # print('Sent ', repr(buffer))
+                    if "stop" not in new_result:
+                        if "zipfile" in new_result and new_result["success"]:
+                            print("[DEBUG] Sending zip file with mail and face recognition data ...")
+                            # send file TODO put this in a function to make it cleaner
+                            zipfile = new_result["zipfile"]
+                            with open(zipfile, "rb") as myfile:
                                 buffer = myfile.read(1024)
-                            # print("counter = ", counter)
-                            token_eof = security_token + "EOF"
-                            conn.send(token_eof.encode())
-                        os.remove(zipfile)
-                        print("[DEBUG] Done")
-                        print("[DEBUG] Waiting for facial verification... ")
-                        facial_rec_data = self.receive_request()
-                        facial_rec_response = self.requests.handle(facial_rec_data, security_token)
-                        if "success" in facial_rec_response:
-                            if facial_rec_response["success"]:
-                                print(["[INFO] Success, sending key ..."])
-                                conn.sendall(facial_rec_response["private_key"])
-                                print("[INFO] key sent !")
-                    else:
-                        # TODO send error response
-                        pass
+                                counter = 0
+                                while buffer:
+                                    counter += 1
+                                    conn.send(buffer)
+                                    # print('Sent ', repr(buffer))
+                                    buffer = myfile.read(1024)
+                                # print("counter = ", counter)
+                                token_eof = security_token + "EOF"
+                                conn.send(token_eof.encode())
+                            os.remove(zipfile)
+                            print("[DEBUG] Done")
+                            print("[DEBUG] Waiting for facial verification... ")
+                            facial_rec_data = self.receive_request()
+                            facial_rec_response = self.requests.handle(facial_rec_data, security_token)
+                            if "success" in facial_rec_response:
+                                if facial_rec_response["success"]:
+                                    print(["[INFO] Success, sending key ..."])
+                                    conn.sendall(facial_rec_response["private_key"])
+                                    print("[INFO] key sent !")
+                        else:
+                            # send error response
+                            new_response = json.dumps(new_result)
+                            conn.sendall(new_response.encode('utf-8'))
                     new_response = json.dumps(new_result)
                     conn.sendall(new_response.encode('utf-8'))
                 if "file_token" in result:
