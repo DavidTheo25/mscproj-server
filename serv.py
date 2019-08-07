@@ -150,11 +150,18 @@ class ClientThread(Thread):
                             print("[DEBUG] Waiting for facial verification... ")
                             facial_rec_data = self.receive_request()
                             facial_rec_response = self.requests.handle(facial_rec_data, security_token)
-                            if "success" in facial_rec_response:
-                                if facial_rec_response["success"]:
-                                    print(["[INFO] Success, sending key ..."])
-                                    conn.sendall(facial_rec_response["private_key"])
-                                    print("[INFO] key sent !")
+                            if "stop" not in facial_rec_response:
+                                if "success" in facial_rec_response:
+                                    if facial_rec_response["success"]:
+                                        print("[INFO] Success, sending key ...")
+                                        conn.sendall(facial_rec_response["private_key"])
+                                        print("[INFO] key sent !")
+                                    else:
+                                        print("[INFO] facial recognition failed")
+                                else:
+                                    print("[INFO] facial recognition failed")
+                            else:
+                                print("[INFO] facial recognition failed")
                         else:
                             # send error response
                             new_response = json.dumps(new_result)

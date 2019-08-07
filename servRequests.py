@@ -146,18 +146,23 @@ class Requests:
             # send notification to recipient
             raw_msg = self.sm.create_message(self.sm.SENDER, recipient, default_subject, default_message)
             message = self.sm.send_message(self.sm.service, "me", raw_msg)
-            if message["labelIds"][0] == "SENT":
-                if not self.has_keys(recipient_hash):
-                    self.gen_keys(recipient_hash)
-                path_to_key = "keys/%s/public.pem" % recipient_hash
-                # encrypt email with recipient's public key
-                self.encrypt_file(path_to_mail_id, path_to_key)
-                res["success"] = True
+            if message is not None:
+                if message["labelIds"][0] == "SENT":
+                    if not self.has_keys(recipient_hash):
+                        self.gen_keys(recipient_hash)
+                    path_to_key = "keys/%s/public.pem" % recipient_hash
+                    # encrypt email with recipient's public key
+                    self.encrypt_file(path_to_mail_id, path_to_key)
+                    res["success"] = True
+                    res["reason"] = "Message " + message["labelIds"][0] + " Id: " + message["id"]
+                else:
+                    res["success"] = False
+                    res["reason"] = "Message " + message["labelIds"][0] + " Id: " + message["id"]
+                    os.remove(path_to_mail_id)
             else:
+                res["reason"] = "Message could not be sent"
                 res["success"] = False
                 os.remove(path_to_mail_id)
-
-            res["reason"] = "Message " + message["labelIds"][0] + " Id: " + message["id"]
         else:
             res["success"] = False
             res["reason"] = "send request should have 3 arguments: recipient email address, subject and content"
@@ -165,36 +170,40 @@ class Requests:
 
     # TODO add pswd verification
     # this should be the "final" get email function (at least in the unencrypted version of the project)
-    # params[0] should be recipient, params[1] received token, params[2] security token
-    @staticmethod
-    def request_get_email(params):
+    # params[0] should be recipient, params[1] pswd, params[2] received token, params[3] security token
+    def request_get_email(self, params):
         res = {}
-        if len(params) == 3:
-            if params[1] == params[2]:
+        if len(params) == 4:
+            if params[2] == params[3]:
+                pswd = params[1]
                 recipient = params[0]
-                path_to_mail = "mail/" + recipient
-                path_to_face_model = "fr_data/" + recipient + "/" + recipient + ".zip"
-                if os.path.exists(path_to_face_model):
-                    if os.path.exists(path_to_mail):
-                        res["success"] = True
-                        # zip all the mail and the face recognition data in the same archive
-                        # this is not secure at all, in version 2 messages will be encrypted or sent separately
-                        zipname = "%s_fr+mail.zip" % recipient
-                        with zipfile.ZipFile(zipname, 'w') as output_zip:
-                            for file in os.listdir(path_to_mail):
-                                file_path = os.path.join(path_to_mail, file)
-                                print("[DEBUG] ", file_path)
-                                output_zip.write(file_path, file)
-                                # TODO delete messages after they've been sent (after testing)
-                                # os.remove(file_path)
-                            output_zip.write(path_to_face_model, "fr_data.zip")
-                        res["zipfile"] = zipname
+                if self.ud.authorize(recipient, pswd):
+                    path_to_mail = "mail/" + recipient
+                    path_to_face_model = "fr_data/" + recipient + "/" + recipient + ".zip"
+                    if os.path.exists(path_to_face_model):
+                        if os.path.exists(path_to_mail):
+                            res["success"] = True
+                            # zip all the mail and the face recognition data in the same archive
+                            # this is not secure at all, in version 2 messages will be encrypted or sent separately
+                            zipname = "%s_fr+mail.zip" % recipient
+                            with zipfile.ZipFile(zipname, 'w') as output_zip:
+                                for file in os.listdir(path_to_mail):
+                                    file_path = os.path.join(path_to_mail, file)
+                                    print("[DEBUG] ", file_path)
+                                    output_zip.write(file_path, file)
+                                    # TODO delete messages after they've been sent (after testing)
+                                    # os.remove(file_path)
+                                output_zip.write(path_to_face_model, "fr_data.zip")
+                            res["zipfile"] = zipname
+                        else:
+                            res["success"] = False
+                            res["reason"] = "No message folder"
                     else:
                         res["success"] = False
-                        res["reason"] = "No message folder"
+                        res["reason"] = "No face recognition data, registration might not be complete"
                 else:
                     res["success"] = False
-                    res["reason"] = "No face recognition data, registration might not be complete"
+                    res["reason"] = "Invalid password or email"
             else:
                 res["success"] = False
                 res["reason"] = "Invalid security token"
@@ -215,10 +224,15 @@ class Requests:
                     nb_of_unread_message = 0
                 else:
                     nb_of_unread_message = len(os.listdir(path_to_mail))
-                res["reason"] = "you have " + str(nb_of_unread_message) + " unread email(s)"
-                # res["token"] = str(get_random_bytes(16))
-                res["token"] = self.generate_token(16)
-                print("token: ", res["token"])
+                if nb_of_unread_message != 0:
+                    res["reason"] = "you have " + str(nb_of_unread_message) + " unread email(s)"
+                    res["number"] = nb_of_unread_message
+                    # res["token"] = str(get_random_bytes(16))
+                    res["token"] = self.generate_token(16)
+                    print("[INFO] token: ", res["token"])
+                else:
+                    res["reason"] = "You do not have any unread email"
+                    res["number"] = 0
             else:
                 res["success"] = False
                 res["reason"] = "Wrong email or password"
