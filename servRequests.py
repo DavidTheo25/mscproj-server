@@ -143,9 +143,10 @@ class Requests:
                 file_content = subject + "\n" + content
                 f.write(file_content.encode('utf-8'))
 
-            # send notification to recipient
+            # send notification to recipient TODO reactivate after testing
             raw_msg = self.sm.create_message(self.sm.SENDER, recipient, default_subject, default_message)
             message = self.sm.send_message(self.sm.service, "me", raw_msg)
+            # message = {"labelIds": ["SENT"], "id": "Test mode, no message sent"}
             if message is not None:
                 if message["labelIds"][0] == "SENT":
                     if not self.has_keys(recipient_hash):
@@ -168,7 +169,6 @@ class Requests:
             res["reason"] = "send request should have 3 arguments: recipient email address, subject and content"
         return res
 
-    # TODO add pswd verification
     # this should be the "final" get email function (at least in the unencrypted version of the project)
     # params[0] should be recipient, params[1] pswd, params[2] received token, params[3] security token
     def request_get_email(self, params):

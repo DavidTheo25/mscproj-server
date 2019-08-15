@@ -26,7 +26,7 @@ class UserData:
         if email in self.userData:
             print("email already registered")
             res["success"] = False
-            res["reason"] = "email " + email + " already registered"
+            res["reason"] = "This user is already registered"
         else:
             self.userData[email] = pswd
             line_to_write = email + "," + pswd + "\n"

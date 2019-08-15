@@ -1,4 +1,5 @@
 import socket
+import json
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -20,8 +21,8 @@ def encrypt_request(request, public_key_path):
     return str((enc_session_key, cipher_aes.nonce, tag, cipher_text)).encode()
 
 
-TCP_IP = 'localhost'
-# TCP_IP = "192.168.56.103"
+# TCP_IP = 'localhost'
+TCP_IP = "192.168.56.103"
 TCP_PORT = 9001
 BUFFER_SIZE = 1024
 
@@ -44,9 +45,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(b"EOR")
     print("[INFO] request sent")
     data = s.recv(BUFFER_SIZE)
-print('Received', repr(data))
+    result = json.loads(data.decode('utf-8'))
+    if "success" in result:
+        if result["success"]:
+            print("[INFO] Message successfully sent !")
+        else:
+            print("[WARNING] ", result["reason"])
+    else:
+        print("[ERROR] Wait, this should not happen ... server error...")
 
 
-print('Sent request')
-# s.close()
-print('connection closed')
+#
+# print('Sent request')
+# # s.close()
+# print('connection closed')

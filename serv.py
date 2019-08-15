@@ -154,6 +154,7 @@ class ClientThread(Thread):
                                 if "success" in facial_rec_response:
                                     if facial_rec_response["success"]:
                                         print("[INFO] Success, sending key ...")
+                                        # TODO encrypt private key with fixed pair of RSA keys to make transport secure
                                         conn.sendall(facial_rec_response["private_key"])
                                         print("[INFO] key sent !")
                                     else:
